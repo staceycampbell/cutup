@@ -1,1 +1,9 @@
 ID
+comp.o
+cut.o
+cutup
+fifo.o
+initend.o
+move.o
+scr.o
+usleep.o
