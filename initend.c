@@ -32,9 +32,9 @@ Welcome(WINDOW * wel_w)
 		mvwaddstr(wel_w, 14, 30, "Controls");
 		wstandend(wel_w);
 		wmove(wel_w, 16, 5);
-		wprintw(wel_w, "Left: '%c'    Right: '%c'", S_LEFT_CH, S_RIGHT_CH);
+		wprintw(wel_w, "Left: '%c'    Right: '%c'", S_LEFT_ALT_CH, S_RIGHT_ALT_CH);
 		wmove(wel_w, 18, 5);
-		wprintw(wel_w, "Up: '%c'      Down: '%c'", S_UP_CH, S_DOWN_CH);
+		wprintw(wel_w, "Up: '%c'      Down: '%c'", S_UP_ALT_CH, S_DOWN_ALT_CH);
 		mvwaddstr(wel_w, 20, 25, "--press space to start--");
 		wrefresh(wel_w);
 		while (wgetch(wel_w) != ' ');

@@ -81,9 +81,13 @@ DeltaInits(void)
 		DeltaI[i] = S_BOGUS;
 
 	DeltaI[S_RIGHT_CH] = S_EAST;
+	DeltaI[S_RIGHT_ALT_CH] = S_EAST;
 	DeltaI[S_LEFT_CH] = S_WEST;
+	DeltaI[S_LEFT_ALT_CH] = S_WEST;
 	DeltaI[S_UP_CH] = S_NORTH;
+	DeltaI[S_UP_ALT_CH] = S_NORTH;
 	DeltaI[S_DOWN_CH] = S_SOUTH;
+	DeltaI[S_DOWN_ALT_CH] = S_SOUTH;
 	DeltaI[0] = S_SAME;
 
 	Delta[S_NORTH].dy = -1;

@@ -2,6 +2,7 @@ ID
 comp.o
 cut.o
 cutup
+cutup.exe
 fifo.o
 initend.o
 move.o

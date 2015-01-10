@@ -37,10 +37,14 @@
 #define S_DELTA_MAX (S_BOGUS + 1)
 #define S_DIR_MAX (S_WEST + 1)
 
-#define S_LEFT_CH     'h'
-#define S_RIGHT_CH    'l'
-#define S_UP_CH       'k'
-#define S_DOWN_CH     'j'
+#define S_LEFT_CH      'h'
+#define S_LEFT_ALT_CH  'a'
+#define S_RIGHT_CH     'l'
+#define S_RIGHT_ALT_CH 's'
+#define S_UP_CH        'k'
+#define S_UP_ALT_CH    'w'
+#define S_DOWN_CH      'j'
+#define S_DOWN_ALT_CH  'z'
 
 #define S_US_CHAR '@'
 #define S_THEM_CHAR '#'
