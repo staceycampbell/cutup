@@ -5,7 +5,6 @@
 #define DISPLAY_ERROR(back_win, e) \
 	{ \
 	WINDOW *err_win; \
-	extern int StopIO; \
 		{ \
 		err_win = CreateWindow(back_win, 3, B_INC(e), 10, CENTRE(e)); \
 		mvwaddstr(err_win, 1, 1, e); \

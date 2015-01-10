@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <curses.h>
 #include "consts.h"
 #include "types.h"
@@ -13,67 +14,177 @@ static int Order[LR_MAX][C_MAX];
 static int Opposite[S_DIR_MAX];
 static int RndMoveProb;
 
-int CollisionImminent();
-int CutupImminent();
-int MakeRndMove();
-int MakeMoveTo();
-int DomainSize();
-void AvoidCutup();
-int CalcDomains();
-void GenRndCoord();
+static int
+CollisionImminent(int board[Y_MAX][X_MAX], coords_t * us)
+{
+	int y, x;
 
-void ComputeMove(board, us, them)
+	y = us->y + Delta[us->dir].dy;
+	x = us->x + Delta[us->dir].dx;
 
-int board[Y_MAX][X_MAX];
-coords_t *us;
-coords_t *them;
+	return board[y][x] != S_FREE;
+}
 
+static int
+MakeRndMove(void)
+{
+	return !(lrand48() % RndMoveProb);
+}
+
+static int
+CutupImminent(int board[Y_MAX][X_MAX], coords_t * us)
+{
+	int y, x;
+	int dir;
+	int board_spot;
+	int back_spot;
+	int board_right, board_left;
+
+	y = us->y + Delta[us->dir].dy;
+	x = us->x + Delta[us->dir].dx;
+	dir = Direct[us->dir][C_RIGHT];
+	board_spot = board[y + Delta[dir].dy][x + Delta[dir].dx];
+	back_spot = board[us->y + Delta[dir].dy][us->x + Delta[dir].dx];
+	board_right = board_spot != S_FREE && !(board_spot & S_BORDER) && back_spot == S_FREE;
+	if (!board_right)
 	{
-	int dom_right, dom_left;
-	int flag;
-
-	SETUP_THEM(board, them);
-	if (CollisionImminent(board, us))
-		{
-		++RndMoveProb;
-		dom_right = DomainSize(board, us, C_RIGHT);
-		dom_left = DomainSize(board, us, C_LEFT);
-		flag = 0;
-		if (dom_right > dom_left)
-			flag = MakeMoveTo(board, us, C_RIGHT);
-		if (! flag)
-			{
-			if (! MakeMoveTo(board, us, C_LEFT))
-				MAINTAIN_COURSE(us);
-			}
-		}
-	else
-		if (CutupImminent(board, us))
-			AvoidCutup(board, us);
-		else
-			if (MakeRndMove())
-				GenRndCoord(board, us);
-			else
-				MAINTAIN_COURSE(us);
-	REMOVE_THEM(board, them);
+		dir = Direct[us->dir][C_LEFT];
+		board_spot = board[y + Delta[dir].dy][x + Delta[dir].dx];
+		back_spot = board[us->y + Delta[dir].dy][us->x + Delta[dir].dx];
+		board_left = board_spot != S_FREE && !(board_spot & S_BORDER) && back_spot == S_FREE;
 	}
 
-static void AvoidCutup(board, us)
+	return board_left || board_right;
+}
 
-int board[Y_MAX][X_MAX];
-coords_t *us;
+static int
+MakeMoveTo(int board[Y_MAX][X_MAX], coords_t * us, int rel)
+{
+	coords_t attempt;
+	int illegal;
 
+	attempt.dir = Direct[us->dir][rel];
+	attempt.y = us->y + Delta[attempt.dir].dy;
+	attempt.x = us->x + Delta[attempt.dir].dx;
+	illegal = board[attempt.y][attempt.x] != S_FREE;
+	if (!illegal)
+		*us = attempt;
+
+	return !illegal;
+}
+
+static int
+FindBestDir(int board[Y_MAX][X_MAX], int y, int x, int dir, int rel, int *count_p)
+{
+	int i = 0;
+	int y_new, x_new;
+	int new_order;
+
+	new_order = Order[rel][i];
+	y_new = y + Delta[Direct[dir][new_order]].dy;
+	x_new = x + Delta[Direct[dir][new_order]].dx;
+	while (BAD_COORDS(y_new, x_new) || board[y_new][x_new] == S_FREE)
 	{
+		++i;
+		new_order = Order[rel][i];
+		y_new = y + Delta[Direct[dir][new_order]].dy;
+		x_new = x + Delta[Direct[dir][new_order]].dx;
+	}
+	*count_p += i;
+
+	return Direct[dir][new_order];
+}
+
+static int
+DomainSize(int board[Y_MAX][X_MAX], coords_t * us, int rel)
+{
+	int dir;
+	int y, x;
+	int count;
+
+	count = 0;
+	dir = us->dir;
+	y = us->y;
+	x = us->x;
+	do
+	{
+		++count;
+		dir = FindBestDir(board, y, x, dir, rel, &count);
+		y += Delta[dir].dy;
+		x += Delta[dir].dx;
+	}
+	while (count < COUNT_LIMIT && !(y == us->y && x == us->x));
+
+	return count;
+}
+
+static int
+CalcDomains(int board[Y_MAX][X_MAX], coords_t *us, int rel)
+{
+	coords_t us_test;
+	int domain_total = 0;
+	int dom_left, dom_right;
+
+	us_test.dir = Direct[us->dir][rel];
+	us_test.y = us->y + Delta[us_test.dir].dy;
+	us_test.x = us->x + Delta[us_test.dir].dx;
+	if (rel == C_FORWARD)
+		us_test.dir = Opposite[us_test.dir];
+	if (board[us_test.y][us_test.x] == S_FREE)
+	{
+		board[us_test.y][us_test.x] |= S_ONE;
+		dom_left = DomainSize(board, &us_test, C_LEFT);
+		dom_right = DomainSize(board, &us_test, C_RIGHT);
+		domain_total = dom_left > dom_right ? dom_left : dom_right;
+		board[us_test.y][us_test.x] = S_FREE;
+	}
+
+	return domain_total;
+}
+
+static void
+GenRndCoord(int board[Y_MAX][X_MAX], coords_t *us)
+{
+	int dir, start_dir, flag;
+	int y, x;
+
+	dir = lrand48() % 4;
+	start_dir = dir;
+	do
+	{
+		y = us->y + Delta[dir].dy;
+		x = us->x + Delta[dir].dx;
+		flag = board[y][x] == S_FREE;
+		if (!flag)
+			dir = (dir + 1) % 4;
+	}
+	while (!flag && dir != start_dir);
+	if (flag)
+	{
+		us->y = y;
+		us->x = x;
+		us->dir = dir;
+	}
+	else
+	{
+		us->y += Delta[us->dir].dy;
+		us->x += Delta[us->dir].dx;
+	}
+}
+
+static void
+AvoidCutup(int board[Y_MAX][X_MAX], coords_t *us)
+{
 	int left_dom, right_dom, forward_dom;
 	int flag = 0;
 	coords_t attempt;
 	int board_spot;
 
 	if (SlowCPU)
-		{
+	{
 		GenRndCoord(board, us);
 		return;
-		}
+	}
 
 	attempt.dir = Direct[us->dir][C_FORWARD];
 	attempt.y = us->y + Delta[attempt.dir].dy;
@@ -87,83 +198,53 @@ coords_t *us;
 
 	if (forward_dom >= left_dom && forward_dom >= right_dom)
 		flag = MakeMoveTo(board, us, C_FORWARD);
+	else if (right_dom > left_dom)
+		flag = MakeMoveTo(board, us, C_RIGHT);
 	else
-		if (right_dom > left_dom)
-			flag = MakeMoveTo(board, us, C_RIGHT);
-		else
-			flag = MakeMoveTo(board, us, C_LEFT);
-	if (! flag)
+		flag = MakeMoveTo(board, us, C_LEFT);
+	if (!flag)
 		MAINTAIN_COURSE(us);
-	}
+}
 
-static int CalcDomains(board, us, rel)
+void
+ComputeMove(int board[Y_MAX][X_MAX], coords_t * us, coords_t * them)
+{
+	int dom_right, dom_left;
+	int flag;
 
-int board[Y_MAX][X_MAX];
-coords_t *us;
-int rel;
-
+	SETUP_THEM(board, them);
+	if (CollisionImminent(board, us))
 	{
-	coords_t us_test;
-	int domain_total = 0;
-	int dom_left, dom_right;
-
-	us_test.dir = Direct[us->dir][rel];
-	us_test.y = us->y + Delta[us_test.dir].dy;
-	us_test.x = us->x + Delta[us_test.dir].dx;
-	if (rel == C_FORWARD)
-		us_test.dir = Opposite[us_test.dir];
-	if (board[us_test.y][us_test.x] == S_FREE)
+		++RndMoveProb;
+		dom_right = DomainSize(board, us, C_RIGHT);
+		dom_left = DomainSize(board, us, C_LEFT);
+		flag = 0;
+		if (dom_right > dom_left)
+			flag = MakeMoveTo(board, us, C_RIGHT);
+		if (!flag)
 		{
-		board[us_test.y][us_test.x] |= S_ONE;
-		dom_left = DomainSize(board, &us_test, C_LEFT);
-		dom_right = DomainSize(board, &us_test, C_RIGHT);
-		domain_total = dom_left > dom_right ? dom_left : dom_right;
-		board[us_test.y][us_test.x] = S_FREE;
+			if (!MakeMoveTo(board, us, C_LEFT))
+				MAINTAIN_COURSE(us);
 		}
-
-	return domain_total;
 	}
-
-static void GenRndCoord(board, us)
-
-int board[Y_MAX][X_MAX];
-coords_t *us;
-
-	{
-	int dir, start_dir, flag;
-	int y, x;
-
-	dir = lrand48() % 4; 
-	start_dir = dir;
-	do	{
-		y = us->y + Delta[dir].dy;
-		x = us->x + Delta[dir].dx;
-		flag = board[y][x] == S_FREE;
-		if (! flag)
-			dir = (dir + 1) % 4;
-		} while (! flag && dir != start_dir);
-	if (flag)
-		{
-		us->y = y;
-		us->x = x;
-		us->dir = dir;
-		}
+	else if (CutupImminent(board, us))
+		AvoidCutup(board, us);
+	else if (MakeRndMove())
+		GenRndCoord(board, us);
 	else
-		{
-		us->y += Delta[us->dir].dy;
-		us->x += Delta[us->dir].dx;
-		}
-	}
+		MAINTAIN_COURSE(us);
+	REMOVE_THEM(board, them);
+}
 
-void CompGameInit()
-
-	{
+void
+CompGameInit(void)
+{
 	RndMoveProb = lrand48() % 10 + 3;
-	}
+}
 
-void CompInit()
-
-	{
+void
+CompInit(void)
+{
 	Direct[S_NORTH][C_REVERSE] = S_SOUTH;
 	Direct[S_NORTH][C_FORWARD] = S_NORTH;
 	Direct[S_NORTH][C_LEFT] = S_WEST;
@@ -192,129 +273,4 @@ void CompInit()
 	Opposite[S_SOUTH] = S_NORTH;
 	Opposite[S_EAST] = S_WEST;
 	Opposite[S_WEST] = S_EAST;
-	}
-
-static int CollisionImminent(board, us)
-
-int board[Y_MAX][X_MAX];
-coords_t *us;
-
-	{
-	int y, x;
-
-	y = us->y + Delta[us->dir].dy;
-	x = us->x + Delta[us->dir].dx;
-
-	return board[y][x] != S_FREE;
-	}
-
-static int MakeRndMove()
-
-	{
-	return ! (lrand48() % RndMoveProb);
-	}
-
-static int CutupImminent(board, us)
-
-int board[Y_MAX][X_MAX];
-coords_t *us;
-
-	{
-	int y, x;
-	int dir;
-	int board_spot;
-	int back_spot;
-	int board_right, board_left;
-
-	y = us->y + Delta[us->dir].dy;
-	x = us->x + Delta[us->dir].dx;
-	dir = Direct[us->dir][C_RIGHT];
-	board_spot = board[y + Delta[dir].dy][x + Delta[dir].dx];
-	back_spot = board[us->y + Delta[dir].dy][us->x + Delta[dir].dx];
-	board_right = board_spot != S_FREE && !(board_spot & S_BORDER) &&
-	    back_spot == S_FREE;
-	if (! board_right)
-		{
-		dir = Direct[us->dir][C_LEFT];
-		board_spot = board[y + Delta[dir].dy][x + Delta[dir].dx];
-		back_spot = board[us->y + Delta[dir].dy][us->x + Delta[dir].dx];
-		board_left = board_spot != S_FREE && !(board_spot & S_BORDER) &&
-		    back_spot == S_FREE;
-		}
-
-	return board_left || board_right;
-	}
-
-static int MakeMoveTo(board, us, rel)
-
-int board[Y_MAX][X_MAX];
-coords_t *us;
-int rel;
-
-	{
-	coords_t attempt;
-	int illegal;
-
-	attempt.dir = Direct[us->dir][rel];
-	attempt.y = us->y + Delta[attempt.dir].dy;
-	attempt.x = us->x + Delta[attempt.dir].dx;
-	illegal = board[attempt.y][attempt.x] != S_FREE;
-	if (! illegal)
-		*us = attempt;
-
-	return ! illegal;
-	}
-
-static int DomainSize(board, us, rel)
-
-int board[Y_MAX][X_MAX];
-coords_t *us;
-int rel;
-
-	{
-	int dir;
-	int y, x;
-	int count;
-
-	count = 0;
-	dir = us->dir;
-	y = us->y;
-	x = us->x;
-	do	{
-		++count;
-		dir = FindBestDir(board, y, x, dir, rel, &count);
-		y += Delta[dir].dy;
-		x += Delta[dir].dx;
-		} while (count < COUNT_LIMIT && ! (y == us->y && x == us->x));
-
-	return count;
-	}
-
-static int FindBestDir(board, y, x, dir, rel, count_p)
-
-int board[Y_MAX][X_MAX];
-int y;
-int x;
-int dir;
-int rel;
-int *count_p;
-
-	{
-	int i = 0;
-	int y_new, x_new;
-	int new_order;
-
-	new_order = Order[rel][i];
-	y_new = y + Delta[Direct[dir][new_order]].dy;
-	x_new = x + Delta[Direct[dir][new_order]].dx;
-	while (BAD_COORDS(y_new, x_new) || board[y_new][x_new] == S_FREE)
-		{
-		++i;
-		new_order = Order[rel][i];
-		y_new = y + Delta[Direct[dir][new_order]].dy;
-		x_new = x + Delta[Direct[dir][new_order]].dx;
-		}
-	*count_p += i;
-
-	return Direct[dir][new_order];
-	}
+}
