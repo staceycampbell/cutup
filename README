@@ -1,0 +1,58 @@
+README for cutup release 1.0
+----------------------------
+
+Description
+-----------
+
+This is the game of cutup, a similar game was around the
+amusement arcades in the mid-70s.  Two players control a
+character that moves around the screen, the game stops when
+either of the characters runs into something.  A match is
+won when a player achieves three wins, or since simultaneous
+crashes are possible, a player has at least three wins and
+wins one more game than the opponent.
+
+This version allows for two human players, or two computer
+players or one computer player with one human player.  The
+appropriate flags are;
+
+	-b  two computer players, a match
+	-d  two computer players continuous
+	-c  a human player against a computer player
+
+No flags specified means two human players.
+
+An extra flag, -s, should be used if the computer heuristic
+is hammering the CPU too hard, though this will make the
+heuristic even less intelligent.
+
+Porting Notes
+-------------
+
+This version of cutup was developed under XENIX 2.3 on a 386 box.
+It uses named pipes and curses.  As such it will compile and run
+on almost any System 5 implementation.
+
+Edit the Makefile to ensure it is doing what you want/need.
+
+You will have to edit usleep.c to make sure that MillisecondSleep()
+is implemented in a sensible way.
+
+System 5.[12] and System 5.3.[01] people may have to be creative here.
+System 5.3.2 (or later) supports nap(), this should be used.
+Basically, if you don't have nap() then try napms() (should be in
+curses library), if that doesn't work then try poll().  If poll()
+isn't around then have a look at SIGALRM, signal(), fork() and
+kill().  If that screws up then have a look in usleep.c at the
+last implementation of MillisecondSleep(), if that makes you
+sick to the stomache then you are probably out of luck.
+
+Implemented by:
+
+	Stacey Campbell @ SCO
+	uucp: uunet!sco!staceyc
+
+Disclaimer:
+
+	...the usual stuff, i.e. if it trashes your system then
+	tough luck.
