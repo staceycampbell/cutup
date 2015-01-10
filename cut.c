@@ -99,10 +99,7 @@ ProcessArgs(WINDOW *old_w, int argc, char **argv)
 {
 	int found;
 	char mess[23];
-	extern int opterr;
-	extern char *optarg;
 
-	opterr = 1;
 	while ((found = getopt(argc, argv, ARG_STRING)) != EOF)
 		switch (found)
 		{
