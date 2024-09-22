@@ -1,21 +1,11 @@
 #include <curses.h>
+#include <unistd.h>
 #include "consts.h"
 #include "types.h"
 #include "funcs.h"
 
-#ifdef M_XENIX
 void
 MillisecondSleep(int ms)
 {
-	(void)nap(ms);
+	(void)usleep(ms * 1000);
 }
-#else
-
-#include <sys/poll.h>
-
-void
-MillisecondSleep(int ms)
-{
-	(void)poll((struct pollfd *)0, 0L, ms);
-}
-#endif

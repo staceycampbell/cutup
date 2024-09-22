@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <curses.h>
+#include <assert.h>
 #include "consts.h"
 #include "types.h"
 #include "macros.h"
@@ -47,14 +48,17 @@ int
 GetMoves(WINDOW * board_w, int board[Y_MAX][X_MAX], int pipe_r, int pipe_w, coords_t * us, coords_t * them)
 {
 	int status = S_NO_COLLISION;
+        int pipe_status;
 
 	if (IComputer)
 		ComputeMove(board, us, them);
 	else
 		HumanMove(board_w, us);
 
-	write(pipe_w, (char *)us, sizeof *us);
-	read(pipe_r, (char *)them, sizeof *them);
+	pipe_status = write(pipe_w, (char *)us, sizeof *us);
+        assert(pipe_status >= 0);
+	pipe_status = read(pipe_r, (char *)them, sizeof *them);
+        assert(pipe_status >= 0);
 
 	if (board[us->y][us->x] != S_FREE)
 	{
@@ -112,4 +116,6 @@ DrawPositions(WINDOW * board_w, int board[Y_MAX][X_MAX], coords_t * us, coords_t
 	}
 	if (!IComputer)
 		MillisecondSleep(140);
+        else
+		MillisecondSleep(10);
 }

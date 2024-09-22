@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <curses.h>
+#include <assert.h>
 #include "consts.h"
 #include "types.h"
 #include "funcs.h"
@@ -62,6 +63,7 @@ GetReady(WINDOW * win, int p_read, int p_write, int game_count, char *hom)
 	char waiting[256];
 	char ack;
 	int len, wait_len;
+        int pipe_status;
 
 	if (!IComputer)
 	{
@@ -80,8 +82,10 @@ GetReady(WINDOW * win, int p_read, int p_write, int game_count, char *hom)
 		mvwaddstr(ready_w, 1, 1, waiting);
 		wrefresh(ready_w);
 	}
-	write(p_write, &ack, sizeof ack);
-	read(p_read, &ack, sizeof ack);
+	pipe_status = write(p_write, &ack, sizeof ack);
+        assert(pipe_status >= 0);
+	pipe_status = read(p_read, &ack, sizeof ack);
+        assert(pipe_status >= 0);
 	if (!IComputer)
 		RemoveWindow(win, ready_w);
 }
