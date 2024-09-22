@@ -63,10 +63,7 @@ ErrorExit(WINDOW *old_w, int status)
 	EndFIFO();
 	if (!StopIO)
 		EndScreen();
-	if (status > sys_nerr)
-		fprintf(stderr, "Unknown error number: %d\n", status);
-	else
-		fprintf(stderr, "error no: %d - %s\n", status, sys_errlist[status]);
+        fprintf(stderr, "error no: %d - %s\n", status, strerror(status));
 	exit(1);
 }
 
@@ -245,7 +242,6 @@ main(int argc, char **argv)
 			IComputer = 1;
 			StopIO = 1;
 			BlockSignals();
-			(void)nice(5);
 			sleep(2);
 			SeedRnd();
 		}
